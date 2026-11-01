@@ -110,7 +110,8 @@ def fork(lesson: LessonVersion, version_number: int | None = None) -> LessonVers
     return version
 
 
-def simulate_one(lesson: LessonVersion, profile: LearnerProfile, seed: int, max_actions: int) -> SimulationRun:
+def simulate_one(lesson: LessonVersion, profile: LearnerProfile, seed: int, max_actions: int,
+                 run_id: str | None = None) -> SimulationRun:
     rng = random.Random(seed + int(hashlib.sha256(profile.id.encode()).hexdigest()[:8], 16))
     actions: list[StudentAction] = []
     for section in lesson.sections:
@@ -132,7 +133,7 @@ def simulate_one(lesson: LessonVersion, profile: LearnerProfile, seed: int, max_
         actions.append(StudentAction(kind="attempt_item", item_id=item.id,
             text="Selected an option in a scripted run; correctness is not inferred.",
             selected_option=rng.randrange(len(item.options))))
-    return SimulationRun(id=uuid4().hex, lesson_id=lesson.id, profile=profile,
+    return SimulationRun(id=run_id or uuid4().hex, lesson_id=lesson.id, profile=profile,
                          seed=seed, actions=actions, prediction=unavailable_prediction())
 
 
@@ -162,7 +163,8 @@ def findings_for(lesson: LessonVersion) -> list[Finding]:
 
 
 def report_for(lesson: LessonVersion) -> EvidenceReport:
-    return EvidenceReport(id=uuid4().hex, lesson_id=lesson.id,
+    report_id = hashlib.sha256(("report:" + lesson.id).encode()).hexdigest()[:32]
+    return EvidenceReport(id=report_id, lesson_id=lesson.id,
         metrics={"attention_rating_mae": None, "quiz_brier": None, "quiz_log_loss": None},
         limitations=[
             "No observed human outcome labels were used for this lesson.",

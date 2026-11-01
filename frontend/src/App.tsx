@@ -102,9 +102,11 @@ export default function App() {
   useEffect(() => {
     if (!job) return;
     const source = new EventSource(`/api/jobs/${job.id}/events`);
+    let finished = false;
     const refresh = () => api<Job>(`/jobs/${job.id}`).then(j => {
+      if (finished) return;
       setJob(j);
-      if (['complete', 'failed', 'cancelled'].includes(j.state)) { source.close(); if (lesson) reload(lesson.id).catch(e => setError(String(e))); }
+      if (['complete', 'failed', 'cancelled'].includes(j.state)) { finished = true; source.close(); if (lesson) reload(lesson.id).catch(e => setError(String(e))); }
     }).catch(e => setError(String(e)));
     source.addEventListener('progress', refresh);
     source.addEventListener('queued', refresh);

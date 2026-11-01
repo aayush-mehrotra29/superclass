@@ -1,4 +1,5 @@
 import json
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -7,6 +8,8 @@ from fastapi.testclient import TestClient
 from backend import store
 from backend.api import app
 from backend.worker import run_once
+from backend.logic import default_profiles, simulate_one
+from backend.models import LessonVersion
 
 
 def video_file(path: Path) -> None:
@@ -42,6 +45,11 @@ def test_upload_to_revision_keeps_keys_private_and_evidence_honest(tmp_path, mon
     simulation = client.post("/api/simulations", json={"lesson_id": lesson_id,
         "profile_count": 12, "seeds_per_profile": 3, "max_actions_per_run": 3})
     assert simulation.status_code == 200
+    # Emulate a worker crash after saving the first run but before its checkpoint.
+    first_run_id = hashlib.sha256(f"{simulation.json()['job_id']}:0".encode()).hexdigest()[:32]
+    model = LessonVersion.model_validate(store.get("lessons", lesson_id))
+    first = simulate_one(model, default_profiles(model.concepts)[0], 1, 3, first_run_id)
+    store.put("runs", first.model_dump())
     assert run_once()
     runs = client.get(f"/api/simulations/{lesson_id}").json()
     assert len(runs) == 36

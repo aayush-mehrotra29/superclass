@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import hashlib
 from . import store
 from .logic import analyze, content_hash, default_profiles, findings_for, report_for, simulate_one
 from .models import LessonVersion, SimulationRequest
@@ -38,7 +39,8 @@ def process(job: dict) -> None:
                     return
                 profile = profiles[index // config.seeds_per_profile]
                 seed = index % config.seeds_per_profile + 1
-                run = simulate_one(lesson, profile, seed, config.max_actions_per_run)
+                run_id = hashlib.sha256(f"{id}:{index}".encode()).hexdigest()[:32]
+                run = simulate_one(lesson, profile, seed, config.max_actions_per_run, run_id)
                 store.put("runs", run.model_dump())
                 store.update_job(id, stage="simulating", progress=index + 1)
             # Idempotent findings: delete old findings for this lesson before writing.
