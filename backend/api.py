@@ -227,6 +227,20 @@ def get_profiles(lesson_id: str):
     return saved["profiles"] if saved else [p.model_dump() for p in default_profiles(lesson.concepts)]
 
 
+@app.put("/api/lessons/{lesson_id}/profiles")
+def update_profiles(lesson_id: str, profiles: list[LearnerProfile]):
+    require("lessons", lesson_id)
+    if not 1 <= len(profiles) <= 12:
+        raise HTTPException(422, "Add between 1 and 12 learner profiles")
+    if any(not profile.name.strip() for profile in profiles):
+        raise HTTPException(422, "Every learner profile needs a name")
+    if len({profile.id for profile in profiles}) != len(profiles):
+        raise HTTPException(422, "Learner profile IDs must be unique")
+    saved = [profile.model_dump() for profile in profiles]
+    store.put("profile_sets", {"id": lesson_id, "profiles": saved})
+    return saved
+
+
 @app.get("/api/simulations/{lesson_id}")
 def get_simulations(lesson_id: str):
     return [run for run in store.list_kind("runs") if run["lesson_id"] == lesson_id]

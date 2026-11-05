@@ -41,6 +41,11 @@ def test_upload_to_revision_keeps_keys_private_and_evidence_honest(tmp_path, mon
     assert "correct_index" not in json.dumps(lesson)
     assert client.get(f"/api/lessons/{lesson_id}/assessment").json()[0]["correct_index"] == 0
     assert client.get(f"/api/reports/{lesson_id}").json()["metrics"]["attention_rating_mae"] is None
+    edited_profiles = [profile.model_dump() for profile in default_profiles(lesson["concepts"])[:2]]
+    edited_profiles[0]["name"] = "Needs a worked example"
+    assert client.put(f"/api/lessons/{lesson_id}/profiles", json=edited_profiles).status_code == 200
+    assert client.get(f"/api/lessons/{lesson_id}/profiles").json()[0]["name"] == "Needs a worked example"
+    assert client.put(f"/api/lessons/{lesson_id}/profiles", json=edited_profiles[:1] * 2).status_code == 422
 
     simulation = client.post("/api/simulations", json={"lesson_id": lesson_id,
         "profile_count": 12, "seeds_per_profile": 3, "max_actions_per_run": 3})
@@ -62,6 +67,7 @@ def test_upload_to_revision_keeps_keys_private_and_evidence_honest(tmp_path, mon
 
     revision = client.post("/api/revisions", json={"finding_id": findings[0]["id"]}).json()
     assert revision["parent_id"] == lesson_id
+    assert client.get(f"/api/lessons/{revision['id']}/profiles").json()[0]["name"] == "Needs a worked example"
     assert revision["source_hash"] == lesson["source_hash"]
     assert revision["content_hash"] != lesson["content_hash"]
     assert client.get(f"/api/lessons/{lesson_id}").json()["sections"] == lesson["sections"]

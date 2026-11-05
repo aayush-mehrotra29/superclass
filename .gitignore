@@ -1,9 +1,18 @@
 .venv/
 node_modules/
 frontend/dist/
+frontend/.next/
 .local/
 __pycache__/
 .pytest_cache/
 *.pyc
 *.tsbuildinfo
 .env
+
+# Credentials and machine-local files
+.env.*
+!.env.example
+!.env.sample
+.DS_Store
+*.pem
+*.key

@@ -1,6 +1,6 @@
-# Classroom Lab
+# superclass
 
-Research-backed lesson-testing prototype for a single educator on a Mac. Upload an English-language video of at most 10 minutes, supply a timed transcript and multiple-choice assessment, inspect source-linked content checks, run constrained scripted learners, and create a versioned revision package. **The current build does not produce validated attention or quiz predictions.**
+Superclass is a learning simulation research prototype. The Next.js frontend includes a landing page and a dashboard for lesson uploads, simulation previews, and an interactive memory map. The previous Vite workspace source is retained in `archive/vite-frontend/`. The FastAPI backend remains available; the new dashboard currently stores its lesson drafts and source files locally in the browser. **The current build does not produce validated attention or quiz predictions.**
 
 ## Run locally
 
@@ -12,13 +12,22 @@ cd frontend && npm install && cd ..
 ./scripts/dev.sh
 ```
 
-Open <http://127.0.0.1:5173>. The script starts a separate persisted-job worker, FastAPI, and Vite. The private SQLite database and uploaded media are stored in `.local/` and ignored by Git. To populate a clearly synthetic example, run `uv run python -m scripts.seed_demo` in a second terminal.
+Open <http://127.0.0.1:8000> for the landing page. The script starts the job worker, FastAPI on port 8001, and Next.js on port 8000. Next.js proxies `/api/*` to FastAPI. The private SQLite database and uploaded media are stored in `.local/` and ignored by Git. To populate a clearly synthetic example, run `uv run python -m scripts.seed_demo` in a second terminal.
 
 For a built local app, run `cd frontend && npm run build`, then `./scripts/start.sh` and open <http://127.0.0.1:8000>.
 
-## Current capability and evidence
+## Current dashboard
 
-- Five views: Projects, Lesson, Simulation, Findings, Evidence.
+- Home accepts files, links, and pasted text, then creates a locally saved simulation draft.
+- Simulations provide source previews, a 3D brain viewer, response panels, and a timeline. Example results are illustrative; new drafts do not fabricate model predictions.
+- Memory visualizes saved lessons and sources as connected nodes, with search, filters, pan/zoom, and a detail panel. Concept connections are curated examples, not extracted memories. A production RAG or memory backend is not connected.
+- Files and other unfinished sections are placeholders.
+- `artifacts/brain-simulation/` contains the standalone SVG animations and their generators.
+
+## Archived workspace capability and evidence
+
+- Lesson library and per-lesson tabs: Overview, Source, Questions, Learners, Runs, Findings, Evidence, and Lab. Questions and learner profiles can be edited directly; run settings live beside the profiles.
+- Test includes a rotatable 3D brain preview, local EEG CSV (`channel,value`) import using standard 10–20 labels, and local NIfTI (`.nii` / `.nii.gz`) voxel-slice import. Files stay in the browser session. The default surface and signal are illustrative; MRI slices are not registered to that surface, and relative EEG magnitude is not an attention measure or source localization.
 - Lesson and assessment edits create new versions; originals remain available. Source and content hashes distinguish video identity from editable lesson content.
 - A timed transcript uses `MM:SS - MM:SS | passage` per line. Untimed passages work but cannot seek to video time. With no transcript, analysis pauses for an educator-supplied transcript. Provider transcription is not configured.
 - Twelve authored profiles × three seeds by default, up to 100 trajectories. Allowed actions are `read_section`, `review_section`, `ask_question`, and `attempt_item`. The scripted student renderer receives question text and options but no answer key. Runs use no tokens and incur no model cost.
