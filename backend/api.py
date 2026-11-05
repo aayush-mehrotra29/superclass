@@ -9,13 +9,14 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from . import store
+from . import brain
 from .adapter import readiness
 from .logic import content_hash, default_profiles, fork, parse_transcript, report_for, revise
 from .models import AssessmentItem, Finding, LearnerProfile, LessonVersion, SimulationRequest
@@ -23,6 +24,79 @@ from .models import AssessmentItem, Finding, LearnerProfile, LessonVersion, Simu
 app = FastAPI(title="Classroom Lab", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+
+@app.post("/api/brain/jobs")
+async def start_brain_job(request: Request, video: UploadFile = File(...), title: str = Form("Lesson"),
+                          cloud_rights: bool = Form(False)):
+    origin = request.headers.get('origin')
+    if origin and origin not in {'http://localhost:8000', 'http://127.0.0.1:8000'}:
+        raise HTTPException(403, 'Upload through the local workspace')
+    if not cloud_rights:
+        raise HTTPException(422, "Confirm permission to process this lesson in the cloud")
+    title = title.strip()
+    if not title or len(title) > 160:
+        raise HTTPException(422, 'Title must contain 1–160 characters')
+    suffix = Path(video.filename or "").suffix.lower()
+    if suffix not in {".mp4", ".mov", ".webm"}:
+        raise HTTPException(422, "Upload an MP4, MOV, or WebM video")
+    try:
+        config = brain.settings()
+        uploads = brain.data_root() / "media"
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HTTPException(503, str(exc)) from exc
+    uploads.mkdir(parents=True, exist_ok=True)
+    path = uploads / f"{uuid4().hex}{suffix}"
+    size = 0
+    try:
+        with path.open("xb") as out:
+            while chunk := await video.read(1024 * 1024):
+                size += len(chunk)
+                if size > 50 * 1024 * 1024:
+                    raise HTTPException(413, "Keep the demo video under 50 MB")
+                out.write(chunk)
+        if not size:
+            raise HTTPException(422, "Video is empty")
+        seconds = duration(path)
+        if seconds > config["max_video_seconds"]:
+            raise HTTPException(422, f"Keep the demo video under {config['max_video_seconds']} seconds")
+        job_id = brain.create_job(path, video.filename or "lesson.mp4", title, seconds)
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+    return {"job_id": job_id, "status_url": f"/api/brain/jobs/{job_id}"}
+
+
+@app.get("/api/brain/jobs/{job_id}")
+def brain_job(job_id: str):
+    row = store.get("brain_runs", job_id)
+    if row is None:
+        raise HTTPException(404, "Brain job not found")
+    job = store.job(job_id)
+    return {"id": job_id, "state": row["state"] if job is None else job["state"],
+            "stage": "complete" if job is None else job["stage"],
+            "error": None if job is None else job["error"],
+            "bundle_url": f"/api/brain/jobs/{job_id}/bundle/manifest.json" if row["state"] == "complete" else None}
+
+
+@app.get("/api/brain/jobs/{job_id}/media")
+def brain_media(job_id: str):
+    row = store.get("brain_runs", job_id)
+    if row is None or not Path(row["source"]).is_file():
+        raise HTTPException(404, "Video unavailable")
+    return FileResponse(Path(row["source"]), media_type=mimetypes.guess_type(row['source'])[0] or 'application/octet-stream')
+
+
+@app.get("/api/brain/jobs/{job_id}/bundle/{name}")
+def brain_bundle_file(job_id: str, name: str):
+    try:
+        root = brain.bundle(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    manifest = json.loads((root / "manifest.json").read_text())
+    if name != "manifest.json" and name not in manifest["files"]:
+        raise HTTPException(404, "Bundle member unavailable")
+    return FileResponse(root / name, media_type="application/json" if name.endswith(".json") else "application/octet-stream")
 
 
 def public_lesson(raw: dict) -> dict:

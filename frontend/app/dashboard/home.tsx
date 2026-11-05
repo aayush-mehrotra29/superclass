@@ -24,7 +24,7 @@ export function SimulationList({ full = false }: { full?: boolean }) {
     <div className="list-heading"><h2>{full ? 'Your simulations' : 'Recent simulations'}</h2><span className="mono muted">{records.length.toString().padStart(2, '0')}</span></div>
     <div className="list-controls"><label className="list-search"><Icon name="search" /><input aria-label="Search simulations" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search simulations…" /></label><div className="segmented" aria-label="Filter simulations">{['All','Drafts','Examples'].map(option => <button key={option} aria-pressed={filter === option} onClick={() => setFilter(option)}>{option}</button>)}</div></div>
     {error && <p className="form-error" role="alert">{error}</p>}
-    <div className="table-scroll"><table className="sim-table"><thead><tr><th>Title</th><th>Sources</th><th>Status</th><th>Created</th><th><span className="workspace-sr-only">Open</span></th></tr></thead><tbody>{filtered.map(item => <tr key={item.id}><td><Link href={`/dashboard/simulations/${item.id}`}><span className="table-file-icon"><Icon name={item.sources[0]?.kind === 'video' ? 'video' : 'document'} /></span><span>{item.title}</span></Link></td><td className="mono muted">{item.sources.length}</td><td><span className={`state-label ${item.demo ? '' : 'draft'}`}>{item.demo ? 'Example' : 'Draft'}</span></td><td className="muted">{new Date(item.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'America/New_York' })}</td><td><Link className="table-open" aria-label={`Open ${item.title}`} href={`/dashboard/simulations/${item.id}`}><Icon name="arrow" /></Link></td></tr>)}</tbody></table></div>
+    <div className="table-scroll"><table className="sim-table"><thead><tr><th>Title</th><th>Sources</th><th>Status</th><th>Created</th><th><span className="workspace-sr-only">Open</span></th></tr></thead><tbody>{filtered.map(item => <tr key={item.id}><td><Link href={`/dashboard/simulations/${item.id}`}><span className="table-file-icon"><Icon name={item.sources[0]?.kind === 'video' ? 'video' : 'document'} /></span><span>{item.title}</span></Link></td><td className="mono muted">{item.sources.length}</td><td><span className={`state-label ${item.demo ? '' : 'draft'}`}>{item.demo ? 'Example' : item.brainJobId ? 'Model run' : 'Draft'}</span></td><td className="muted">{new Date(item.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', timeZone:'America/New_York' })}</td><td><Link className="table-open" aria-label={`Open ${item.title}`} href={`/dashboard/simulations/${item.id}`}><Icon name="arrow" /></Link></td></tr>)}</tbody></table></div>
     {!filtered.length && <p className="empty-list">No simulations match your search.</p>}
   </section>;
 }
@@ -41,6 +41,7 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [cloudRights, setCloudRights] = useState(false);
 
   async function addFiles(files: File[]) {
     setError('');
@@ -70,7 +71,19 @@ export default function Home() {
     setSaving(true); setError('');
     const id = crypto.randomUUID();
     try {
-      await save({ id, title:title.trim() || sources[0].name.replace(/\.[^/.]+$/, ''), createdAt:new Date().toISOString(), sources });
+      let brainJobId: string | undefined;
+      if (sources.length === 1 && sources[0].kind === 'video' && sources[0].file) {
+        if (!cloudRights) throw new Error('Confirm that this is your lesson and you authorize cloud processing.');
+        const body = new FormData();
+        body.append('video', sources[0].file, sources[0].name);
+        body.append('title', title.trim() || sources[0].name);
+        body.append('cloud_rights', 'true');
+        const response = await fetch('/api/brain/jobs', {method:'POST',body});
+        const result = await response.json();
+        if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Could not start model processing.');
+        brainJobId = result.job_id;
+      }
+      await save({ id, title:title.trim() || sources[0].name.replace(/\.[^/.]+$/, ''), createdAt:new Date().toISOString(), sources, brainJobId });
       router.push(`/dashboard/simulations/${id}`);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save this simulation.'); setSaving(false); }
   }
@@ -92,10 +105,11 @@ export default function Home() {
         {mode === 'text' && <div className="inline-source"><label htmlFor="source-text">Lesson text</label><textarea id="source-text" autoFocus placeholder="Paste a lesson, transcript, or supporting context…" rows={5} maxLength={100000} value={text} onChange={event => setText(event.target.value)} /><button className="studio-button" onClick={addText}>Add text</button></div>}
         {!!sources.length && <div className="staged-sources"><label className="title-field">Simulation title<input maxLength={160} value={title} placeholder={sources[0].name.replace(/\.[^/.]+$/, '')} onChange={event => setTitle(event.target.value)} /></label><div className="staged-list">{sources.map(source => <div className="staged-source" key={source.id}><Icon name={source.kind === 'link' ? 'link' : source.kind === 'document' ? 'document' : source.kind} /><span>{source.name}</span><small className="mono">{source.size ? sizeLabel(source.size) : source.kind}</small><button aria-label={`Remove ${source.name}`} onClick={() => setSources(items => items.filter(item => item.id !== source.id))}><Icon name="close" /></button></div>)}</div></div>}
       </fieldset>
+      {sources.length === 1 && sources[0].kind === 'video' && <label className="neural-upload-consent"><input type="checkbox" checked={cloudRights} onChange={event=>setCloudRights(event.target.checked)}/> I created this lesson and authorize cloud processing. Demo videos: MP4, MOV or WebM, up to 3 minutes. Predictions are experimental.</label>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <footer className="composer-footer"><span className="mono">{sources.length ? `${sources.length} SOURCE${sources.length === 1 ? '' : 'S'} ADDED` : '50 MB / FILE'}<span className="footer-divider">/</span>Saved in this browser</span><button className="studio-button primary" disabled={!sources.length || saving} onClick={create}>{saving ? 'Saving…' : 'Create simulation'}<Icon name="arrow" /></button></footer>
     </section>
-    <Link className="example-strip" href="/dashboard/simulations/industrial-revolution"><span className="example-symbol"><Icon name="simulations" /></span><span><strong>Take a look inside a simulation</strong><small>Explore the brain viewer, response panels, and timeline with illustrative data.</small></span><span className="example-open">Open example <Icon name="arrow" /></span></Link>
+    <Link className="example-strip" href="/dashboard/simulations/qualified-neural-example"><span className="example-symbol"><Icon name="simulations" /></span><span><strong>Explore an actual model output</strong><small>Play a lesson with predicted cortex, EEG channels, and five response scores.</small></span><span className="example-open">Open example <Icon name="arrow" /></span></Link>
     <SimulationList />
   </div>;
 }

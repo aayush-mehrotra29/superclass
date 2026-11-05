@@ -1,6 +1,6 @@
 # superclass
 
-Superclass is a learning simulation research prototype. The Next.js frontend includes a landing page and a dashboard for lesson uploads, simulation previews, and an interactive memory map. The previous Vite workspace source is retained in `archive/vite-frontend/`. The FastAPI backend remains available; the new dashboard currently stores its lesson drafts and source files locally in the browser. **The current build does not produce validated attention or quiz predictions.**
+Superclass is a learning simulation research prototype. The Next.js frontend includes a landing page and a dashboard for lesson uploads, simulation previews, and an interactive memory map. The previous Vite workspace source is retained in `archive/vite-frontend/`. The dashboard saves drafts in the browser and connects single-video uploads to the numerical model through the FastAPI job worker. **The current build does not produce validated attention or quiz predictions.**
 
 ## Run locally
 
@@ -18,11 +18,13 @@ For a built local app, run `cd frontend && npm run build`, then `./scripts/start
 
 ## Current dashboard
 
-- Home accepts files, links, and pasted text, then creates a locally saved simulation draft.
-- Simulations provide source previews, a 3D brain viewer, response panels, and a timeline. Example results are illustrative; new drafts do not fabricate model predictions.
+- Home accepts lesson sources. A single authorized video starts a model job; other inputs remain saved drafts.
+- Completed video runs show synchronized native TRIBE cortex on the exported mesh, 40-channel filtered EEG, and five floating-point score timelines. The Velocity example uses a qualified model output; older examples remain labeled illustrative.
 - Memory visualizes saved lessons and sources as connected nodes, with search, filters, pan/zoom, and a detail panel. Concept connections are curated examples, not extracted memories. A production RAG or memory backend is not connected.
 - Files and other unfinished sections are placeholders.
 - `artifacts/brain-simulation/` contains the standalone SVG animations and their generators.
+
+See [numerical model integration](docs/brain-app-integration.md) for setup, cloud/local execution, limits, and evidence. Heavy foundation inference uses Modal; EEG and score inference currently use the local qualified runtime.
 
 ## Archived workspace capability and evidence
 

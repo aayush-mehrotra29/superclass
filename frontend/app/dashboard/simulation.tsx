@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Icon from './icons';
 import { useLibrary, sizeLabel, type Source } from './library';
 import { Radar, ResponseChart, responseNames, responseValues } from './simulation-charts';
+import NeuralSimulation from './neural-simulation';
 const BrainViewer=dynamic(()=>import('./brain-viewer'), {ssr:false, loading:()=> <div className="cortex-canvas"><span className="brain-status">Loading 3D viewer…</span></div>});
 const formatTime=(seconds:number)=>`${Math.floor(seconds/60).toString().padStart(2,'0')}:${Math.floor(seconds%60).toString().padStart(2,'0')}`;
 const segments=[['Opening context',0,60],['The shift to industry',60,130],['Inventions and innovators',130,220],['Connecting the ideas',220,300]] as const;
@@ -49,6 +50,7 @@ export default function SimulationView({ id }: {id:string}) {
   },[playing,demo]);
   if(!record && !loaded) return <div className="studio-loading">Opening simulation…</div>;
   if(!record) return <div className="studio-home"><h1>Simulation not found</h1><p>{error || 'This draft is not saved in this browser.'}</p><Link className="studio-button" href="/dashboard">Back to Home</Link></div>;
+  if(record.brainJobId) return <NeuralSimulation record={record}/>;
   const values=responseValues(time);
   const source=record.sources[selected];
   return <div className="simulation-page">
@@ -71,7 +73,7 @@ export default function SimulationView({ id }: {id:string}) {
           <div className="cortex-legend"><span className="mono">DRAG TO ROTATE</span>{demo && <label><input type="checkbox" checked={overlay} onChange={event=>setOverlay(event.target.checked)}/>Example overlay</label>}</div>
           <p className="panel-note">{demo ? 'Illustrative anatomy and overlay. Not an fMRI prediction or a registered cortical surface.' : 'Anatomical preview. Cortical predictions will appear here when model output is connected.'}</p>
         </section>
-        <section className="category-panel"><div className="panel-heading"><div><span className="eyebrow">CATEGORICAL RESPONSE</span><h2>Learning response</h2></div><span className="state-label">{demo?'Illustrative':'Not available'}</span></div><div className="category-body"><Radar time={time} demo={demo}/><dl>{responseNames.map((name,i)=><div key={name}><dt>{name}</dt><dd className="mono">{demo?values[i]:'—'}{demo && <small>/100</small>}</dd></div>)}</dl></div><p className="panel-note">{demo ? 'Example scores for the interface, not validated student outcomes.' : 'The current neural model does not provide these categorical scores.'}</p></section>
+        <section className="category-panel"><div className="panel-heading"><div><span className="eyebrow">CATEGORICAL RESPONSE</span><h2>Learning response</h2></div><span className="state-label">{demo?'Illustrative':'Not available'}</span></div><div className="category-body"><Radar time={time} demo={demo}/><dl>{responseNames.map((name,i)=><div key={name}><dt>{name}</dt><dd className="mono">{demo?values[i]:'—'}{demo && <small>/100</small>}</dd></div>)}</dl></div><p className="panel-note">{demo ? 'Example scores for the interface, not validated student outcomes.' : 'No model run is attached to this draft.'}</p></section>
       </aside>
     </div>
     <section className="simulation-details" aria-label="Detailed simulation data">

@@ -12,6 +12,10 @@ def process(job: dict) -> None:
     if job["state"] == "cancelled":
         return
     try:
+        if job["kind"] == "brain":
+            from . import brain
+            brain.process(job)
+            return
         store.update_job(id, state="running", stage="loading")
         lesson_data = store.get("lessons", job["target_id"])
         if not lesson_data:
