@@ -73,6 +73,22 @@ def bundle(job_id: str) -> Path:
     return path
 
 
+def processing_stage(job_id: str) -> str:
+    """Describe completed artifacts without inventing an inference percentage."""
+    root = data_root() / job_id / "inference"
+    for artifact, stage in (
+        ("scores/manifest.json", "Exporting synchronized model output"),
+        ("eeg/manifest.json", "Predicting the five response scores"),
+        ("audio-native/request-receipt.json", "Predicting EEG waveforms locally"),
+        ("content/manifest.json", "Processing speech features in the cloud"),
+        ("content/tribe-cloud-request.json", "Processing cortical responses in the cloud"),
+        ("presentation/manifest.json", "Preparing audio and visual features"),
+    ):
+        if (root / artifact).is_file():
+            return stage
+    return "Verifying the model and preparing the lesson"
+
+
 def process(job: dict) -> None:
     job_id = job["id"]
     config = settings()

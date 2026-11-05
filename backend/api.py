@@ -73,8 +73,14 @@ def brain_job(job_id: str):
     if row is None:
         raise HTTPException(404, "Brain job not found")
     job = store.job(job_id)
+    stage = "complete" if job is None else job["stage"]
+    if job is not None and job["state"] == "running":
+        try:
+            stage = brain.processing_stage(job_id)
+        except (OSError, ValueError):
+            stage = "Waiting for model storage"
     return {"id": job_id, "state": row["state"] if job is None else job["state"],
-            "stage": "complete" if job is None else job["stage"],
+            "stage": stage,
             "error": None if job is None else job["error"],
             "bundle_url": f"/api/brain/jobs/{job_id}/bundle/manifest.json" if row["state"] == "complete" else None}
 

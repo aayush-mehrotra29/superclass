@@ -41,3 +41,20 @@ def test_only_manifest_members_served_and_media_ranges(tmp_path, monkeypatch):
     assert client.get('/api/brain/jobs/test/bundle/scores.json').json() == {'value':None}
     r=client.get('/api/brain/jobs/test/media',headers={'range':'bytes=2-5'})
     assert r.status_code == 206 and r.content == b'2345'
+
+
+def test_running_stage_uses_completed_artifacts_and_keeps_failures(tmp_path, monkeypatch):
+    client, _ = configure(tmp_path, monkeypatch)
+    job_id = store.create_job('brain', 'source')
+    store.put('brain_runs', {'id':job_id, 'state':'queued'})
+    store.update_job(job_id, state='running', stage='model inference')
+    assert 'Verifying' in client.get(f'/api/brain/jobs/{job_id}').json()['stage']
+    root = tmp_path / job_id / 'inference'
+    (root / 'content').mkdir(parents=True)
+    (root / 'content/tribe-cloud-request.json').write_text('{}')
+    assert client.get(f'/api/brain/jobs/{job_id}').json()['stage'] == 'Processing cortical responses in the cloud'
+    (root / 'content/manifest.json').write_text('{}')
+    assert client.get(f'/api/brain/jobs/{job_id}').json()['stage'] == 'Processing speech features in the cloud'
+    store.update_job(job_id, state='failed', stage='failed', error='Saved cloud failure')
+    response = client.get(f'/api/brain/jobs/{job_id}').json()
+    assert response['stage'] == 'failed' and response['error'] == 'Saved cloud failure'
