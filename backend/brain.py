@@ -89,6 +89,27 @@ def processing_stage(job_id: str) -> str:
     return "Verifying the model and preparing the lesson"
 
 
+def build_playback(job_id: str) -> None:
+    """Generate a separately labeled short-context sidecar; no new cloud calls."""
+    config = settings()
+    record = store.get("brain_runs", job_id)
+    root = bundle(job_id)
+    model = json.loads((Path(config['pointer']['model_directory']) / 'manifest.json').read_text())
+    destination = data_root() / job_id / 'responsive-playback.json'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, 'SUPERCLASS_MODEL_ROOT':str(config['model']),
+           'OMP_NUM_THREADS':'1', 'OPENBLAS_NUM_THREADS':'1', 'VECLIB_MAXIMUM_THREADS':'1',
+           'PYTHONDONTWRITEBYTECODE':'1'}
+    with (destination.parent / 'responsive-playback.log').open('w') as log:
+        result = subprocess.run([config['python'], '-B', str(ROOT / 'scripts/playback_estimates.py'),
+            '--bundle',str(root), '--model',model['components']['fusion_model']['path'],
+            '--output',str(destination), '--duration',str(record['duration'])],
+            env=env, cwd=config['model'], stdout=log, stderr=subprocess.STDOUT, timeout=600)
+    if result.returncode:
+        raise RuntimeError('Short-context preview unavailable; original numerical output is preserved')
+    store.put('brain_runs',{**record,'playback':str(destination)})
+
+
 def process(job: dict) -> None:
     job_id = job["id"]
     config = settings()
@@ -120,4 +141,10 @@ def process(job: dict) -> None:
         raise RuntimeError("Model result does not match the uploaded lesson")
     record = store.get("brain_runs", job_id)
     store.put("brain_runs", {**record, "state": "complete", "bundle": str(output / "bundle")})
+    store.update_job(job_id, stage="Preparing responsive playback")
+    try:
+        build_playback(job_id)
+    except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+        record = store.get('brain_runs', job_id)
+        store.put('brain_runs', {**record, 'playback_error':str(error)})
     store.update_job(job_id, state="complete", stage="complete", progress=100)

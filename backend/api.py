@@ -93,6 +93,18 @@ def brain_media(job_id: str):
     return FileResponse(Path(row["source"]), media_type=mimetypes.guess_type(row['source'])[0] or 'application/octet-stream')
 
 
+@app.get("/api/brain/jobs/{job_id}/playback")
+def brain_playback(job_id: str):
+    row = store.get('brain_runs', job_id)
+    if not row or not row.get('playback') or not Path(row['playback']).is_file():
+        raise HTTPException(404, 'Responsive playback preview unavailable')
+    data = json.loads(Path(row['playback']).read_text())
+    if (data.get('source_sha256') != row['source_sha256'] or
+            data.get('bundle_manifest_sha256') != brain.file_hash(brain.bundle(job_id) / 'manifest.json')):
+        raise HTTPException(409, 'Playback preview belongs to another model output')
+    return data
+
+
 @app.get("/api/brain/jobs/{job_id}/bundle/{name}")
 def brain_bundle_file(job_id: str, name: str):
     try:

@@ -82,3 +82,18 @@ fusion attention MAE is 2.77214, compared with 2.75781 for content plus cortex;
 there is no demonstrated accuracy benefit from the EEG block. Native TRIBE
 predictions remain unchanged. Video playback is synchronized presentation of
 precomputed predictions, not causal real-time brain sensing.
+
+## Responsive playback estimates
+
+The default radar uses `scripts/playback_estimates.py`, a separate, unvalidated
+inference policy with the same frozen three-seed score network and transforms.
+It pools up to 12 preceding seconds, masks unsupported neural blocks, and previews
+the first second at time zero. If opening content is unsupported, it explicitly
+labels the network prior. No scores are amplified or jittered. SAM and descriptor
+slots are masked for this adapter. The original 44-second output remains selectable.
+
+The signed cortical display uses a fixed, whole-lesson 95th-percentile absolute
+color scale. This changes display contrast only. Signal flags mark separated
+local peaks in relative one-second predicted EEG/cortex changes, normalized by
+nonzero-change percentiles. They are not validated psychological events. Native
+EEG/cortical buffers and the original score bundle remain unchanged.

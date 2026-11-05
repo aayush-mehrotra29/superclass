@@ -177,3 +177,10 @@
 .neural-scores>div { display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px; }
 .neural-scores progress { width:100%;height:5px;grid-column:1/-1;accent-color:#2589cb; }
 .neural-upload-consent { display:flex;align-items:flex-start;gap:10px;padding:18px 24px;font-size:12px;line-height:1.5; }
+.vivid-cortex{height:330px;margin-top:18px;border:2px solid #089cff;background:#f1f5f8;overflow:hidden}
+.cortex-key{margin-top:14px}.cortex-key>div{display:flex;justify-content:space-between;gap:12px;font:10px var(--mono);color:#456078}.cortex-key .cortex-gradient{height:10px;margin:8px 0;background:linear-gradient(90deg,#0068ff,#779ff2 30%,#d2dae1 48%,#d2dae1 52%,#f52608 62%,#ff9400 80%,#fff000)}
+.cortex-key p{font-size:10px;line-height:1.6;color:#597084}.analysis-column .panel-note{color:#5d7183}
+.neural-radar{display:block;width:100%;max-width:520px;margin:12px auto 0;overflow:visible}.radar-axis-label{font:10px var(--mono);fill:#3a5369}.radar-score{font:500 19px var(--mono);fill:#007bc5}.radar-key{display:flex;justify-content:space-between;color:#147fb5;font:10px var(--mono);gap:10px}
+.score-mode{display:flex;gap:3px;margin-top:18px;background:#eaf0f5;padding:3px;width:fit-content}.workspace .score-mode button{padding:7px 9px;font-size:10px;color:#526a80}.workspace .score-mode button[aria-pressed=true]{color:#0068af;background:white;box-shadow:0 1px 3px #173b5318}
+.signal-flags{margin-top:26px;padding-top:22px;border-top:1px solid #dde6ee}.signal-flags h2{font-size:17px;font-weight:500;margin:8px 0 18px}.workspace .signal-flags button{display:flex;align-items:center;width:100%;gap:14px;text-align:left;padding:13px 10px;margin-top:7px;border:1px solid #f5c5a4;background:#fff8f0;font-size:12px;color:#75462b}.signal-flags button>span:nth-child(2){flex:1}.signal-flags strong{font:11px var(--mono);color:#c35d0e}.signal-flags .panel-note{color:#66778a}.workspace .signal-flags button:hover{border-color:#ff791a;background:#fff0dd}
+@media(max-width:600px){.vivid-cortex{height:300px}.radar-axis-label{font-size:10px}.signal-flags button{gap:8px}.radar-key{font-size:9px}}
